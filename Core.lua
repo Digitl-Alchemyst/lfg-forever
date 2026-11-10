@@ -368,6 +368,10 @@ end
 -- (the same behavior as the built-in social menu / player frame "Invite").
 function ns.Invite(name)
     if not name then return end
+    if ns.GroupIsFull() then
+        ns.Print("Your " .. (IsInRaid() and "raid" or "group") .. " is full.")
+        return
+    end
     if C_PartyInfo and C_PartyInfo.InviteUnit then
         C_PartyInfo.InviteUnit(name)
     elseif InviteUnit then
@@ -403,6 +407,17 @@ end
 
 function ns.CanInvite()
     return not IsInGroup() or UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")
+end
+
+-- A full party can't become a full raid mid-invite, and a full raid has no
+-- more slots, so either way there's no point inviting or suggesting one.
+function ns.GroupIsFull()
+    local n = GetNumGroupMembers()
+    if n == 0 then return false end
+    if IsInRaid() then
+        return n >= (_G.MAX_RAID_MEMBERS or 40)
+    end
+    return n >= ((_G.MAX_PARTY_MEMBERS or 4) + 1)
 end
 
 -- --------------------------------------------------------------- declines
