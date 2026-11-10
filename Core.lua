@@ -35,6 +35,7 @@ ns.results = {}      -- all parsed results from the last search
 ns.filtered = {}     -- results after our filters
 ns.requested = {}    -- leaderName -> time we sent a Request to Join
 ns.declined = {}     -- leaderName -> time they declined our Request to Join
+ns.searchedActivities = {} -- activityID -> true, once a search has included it
 ns.searching = false
 ns.sawSecret = false
 
@@ -273,6 +274,20 @@ function ns.Search()
     else
         ns.searching = true
         ns.searchFailed = false
+        for _, id in ipairs(activityIDs) do ns.searchedActivities[id] = true end
+        -- Self-heals a search that never gets a response (e.g. if this ever
+        -- gets called from something other than a real click, the server
+        -- can silently drop it and never fire the result/failure event,
+        -- which would otherwise leave ns.searching stuck true forever).
+        local token = (ns.searchToken or 0) + 1
+        ns.searchToken = token
+        C_Timer.After(12, function()
+            if ns.searching and ns.searchToken == token then
+                ns.searching = false
+                ns.searchFailed = true
+                if ns.UpdateUI then ns.UpdateUI() end
+            end
+        end)
     end
     if ns.UpdateUI then ns.UpdateUI() end
 end

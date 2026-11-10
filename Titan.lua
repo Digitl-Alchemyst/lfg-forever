@@ -16,7 +16,11 @@ local function AddActivitySection(tooltip, title, activity)
     tooltip:AddLine(title .. ": " .. activity.name, 1, 0.82, 0)
     local groups, solo = ns.CountByActivity(activity.id)
     if groups == 0 and solo == 0 then
-        tooltip:AddLine("No active listings", 0.6, 0.6, 0.6)
+        if ns.searchedActivities[activity.id] then
+            tooltip:AddLine("No active listings", 0.6, 0.6, 0.6)
+        else
+            tooltip:AddLine("Not searched yet - right-click to search", 0.6, 0.6, 0.6, true)
+        end
         return
     end
     tooltip:AddLine(groups .. (groups == 1 and " group, " or " groups, ") .. solo .. (solo == 1 and " solo player" or " solo players"), 0.8, 0.8, 0.8)
@@ -31,22 +35,9 @@ local function AddActivitySection(tooltip, title, activity)
     end
 end
 
--- Keeps the tooltip self-sufficient instead of depending on the main
--- window ever having been searched. Runs from OnTooltipShow (a real
--- mouse-driven callback, like the Search button click this addon's
--- design rules require), throttled so re-hovering doesn't spam searches.
-local AUTO_SEARCH_COOLDOWN = 20 -- seconds
-local lastAutoZone, lastAutoTime
-
-local function EnsureBackgroundSearch(zoneName, ids)
-    if not ns.db or #ids == 0 or ns.searching then return end
-    local stale = not lastAutoTime or (GetTime() - lastAutoTime) > AUTO_SEARCH_COOLDOWN
-    if lastAutoZone == zoneName and not stale then return end
-    lastAutoZone, lastAutoTime = zoneName, GetTime()
-    ns.db.activityIDs = ids
-    ns.Search()
-end
-
+-- Find() is always recomputed fresh against the player's CURRENT zone (not
+-- cached), so both the tooltip and this menu already reflect zone changes
+-- the moment you hover/right-click again - no stale state to refresh here.
 local function ShowZoneMenu(owner)
     if not ns.db then return end
     ns.EnsureCategory()
@@ -86,6 +77,11 @@ LDB:NewDataObject(ADDON, {
             ns.Toggle()
         end
     end,
+    -- Deliberately does NOT trigger a search itself: C_LFGList.Search only
+    -- works from a real click (see the note at the top of Core.lua) - a
+    -- hover-triggered search was tried here and got silently dropped by
+    -- the server, leaving ns.searching stuck true forever. Right-click is
+    -- the one reliable trigger, so that's what this points you to.
     OnTooltipShow = function(tooltip)
         tooltip:AddLine("LFG Forever", 1, 0.82, 0)
         if not ns.db then
@@ -94,10 +90,6 @@ LDB:NewDataObject(ADDON, {
         end
         ns.EnsureCategory()
         local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
-        local ids = {}
-        if zoneActivity then ids[#ids + 1] = zoneActivity.id end
-        if dungeonActivity then ids[#ids + 1] = dungeonActivity.id end
-        EnsureBackgroundSearch(zoneName, ids)
 
         if not zoneActivity and not dungeonActivity then
             tooltip:AddLine(" ")
