@@ -11,10 +11,13 @@ local function Menu(owner, generator)
     end
 end
 
-local function ShowSettingsMenu(owner)
+-- Same zone/dungeon search options Titan's right-click offers, plus the
+-- settings checkboxes, in one menu.
+local function ShowMenu(owner)
     if not ns.db then return end
     Menu(owner, function(_, root)
-        root:CreateTitle("LFG Forever Settings")
+        ns.AddZoneMenuItems(root)
+        root:CreateDivider()
         root:CreateCheckbox("Zone entry notifications", function() return ns.db.zoneNotify end, function()
             ns.db.zoneNotify = not ns.db.zoneNotify
             return MenuResponse and MenuResponse.Refresh
@@ -79,7 +82,7 @@ function ns.InitMinimap()
 
     btn:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
-            ShowSettingsMenu(self)
+            ShowMenu(self)
         else
             ns.Toggle()
         end
@@ -89,8 +92,10 @@ function ns.InitMinimap()
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("LFG Forever")
+        ns.AddZoneTooltipLines(GameTooltip)
+        GameTooltip:AddLine(" ")
         GameTooltip:AddLine("Left-click: open the group browser", 1, 1, 1)
-        GameTooltip:AddLine("Right-click: settings", 1, 1, 1)
+        GameTooltip:AddLine("Right-click: search / settings", 1, 1, 1)
         GameTooltip:AddLine("Drag: move this button", 1, 1, 1)
         GameTooltip:AddLine("/lfg also opens it", 0.6, 0.6, 0.6)
         GameTooltip:Show()

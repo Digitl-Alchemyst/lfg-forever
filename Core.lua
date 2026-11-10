@@ -270,6 +270,75 @@ function ns.SearchActivity(activityID)
     ns.Search()
 end
 
+-- Shared by the minimap button and the Titan Panel plugin, so both show
+-- the same zone/dungeon info on hover and offer the same search options
+-- on right-click.
+local function AddActivitySection(tooltip, title, activity)
+    if not activity then return end
+    tooltip:AddLine(" ")
+    tooltip:AddLine(title .. ": " .. activity.name, 1, 0.82, 0)
+    local groups, solo = ns.CountByActivity(activity.id)
+    if groups == 0 and solo == 0 then
+        if ns.searchedActivities[activity.id] then
+            tooltip:AddLine("No active listings", 0.6, 0.6, 0.6)
+        else
+            tooltip:AddLine("Not searched yet - right-click to search", 0.6, 0.6, 0.6, true)
+        end
+        return
+    end
+    tooltip:AddLine(groups .. (groups == 1 and " group, " or " groups, ") .. solo .. (solo == 1 and " solo player" or " solo players"), 0.8, 0.8, 0.8)
+    local shown = ns.ListByActivity(activity.id, 5)
+    for _, e in ipairs(shown) do
+        local who = e.isSolo and (e.name or "?") or ((e.name or "?") .. "'s group")
+        tooltip:AddDoubleLine(who, e.level and ("Lvl " .. e.level) or "", 1, 1, 1, 0.7, 0.7, 0.7)
+    end
+    local total = groups + solo
+    if total > #shown then
+        tooltip:AddLine("+" .. (total - #shown) .. " more", 0.6, 0.6, 0.6)
+    end
+end
+
+-- Adds the zone/dungeon listing sections (and a "Searching..." line if
+-- one's in flight) to any GameTooltip-like object. Deliberately never
+-- triggers a search itself - see the note on ns.Search() above.
+function ns.AddZoneTooltipLines(tooltip)
+    if not ns.db then
+        tooltip:AddLine("Loading...", 0.6, 0.6, 0.6)
+        return
+    end
+    ns.EnsureCategory()
+    local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
+    if not zoneActivity and not dungeonActivity then
+        tooltip:AddLine(" ")
+        tooltip:AddLine("No matching activity for " .. (zoneName ~= "" and zoneName or "this zone"), 0.6, 0.6, 0.6)
+    else
+        AddActivitySection(tooltip, "Zone", zoneActivity)
+        AddActivitySection(tooltip, "Dungeon", dungeonActivity)
+    end
+    if ns.searching then
+        tooltip:AddLine(" ")
+        tooltip:AddLine("Searching...", 0.6, 0.6, 0.6)
+    end
+end
+
+-- Adds the "Search Zone X" / "Search Dungeon Y" menu entries (and a title)
+-- to a MenuUtil context menu root. The caller adds its own divider/footer.
+function ns.AddZoneMenuItems(root)
+    if not ns.db then return end
+    ns.EnsureCategory()
+    local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
+    root:CreateTitle("LFG Forever")
+    if zoneActivity then
+        root:CreateButton("Search " .. zoneActivity.name, function() ns.SearchActivity(zoneActivity.id) end)
+    end
+    if dungeonActivity then
+        root:CreateButton("Search " .. dungeonActivity.name, function() ns.SearchActivity(dungeonActivity.id) end)
+    end
+    if not zoneActivity and not dungeonActivity then
+        root:CreateTitle("No activity found for " .. (zoneName ~= "" and zoneName or "this zone"))
+    end
+end
+
 -- ---------------------------------------------------------------- search
 -- Must be called from a click / key press.
 function ns.Search()

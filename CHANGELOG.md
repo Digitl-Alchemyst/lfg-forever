@@ -8,7 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Added
 - Zone entry chat notice: prints once when you enter a zone with a matching zone/dungeon activity (e.g. "Entered Westfall - Westfall, Deadmines nearby. Right-click the minimap/Titan icon to search."). Only reads already-known activity data - never triggers a search itself, so it can't get stuck the way a hover-triggered search did.
-- Minimap button right-click now opens a settings menu (previously just printed a hint) with checkboxes for "Zone entry notifications" and "Hide minimap button", plus "Open window". Also togglable via `/lfg zonenotify`.
+- Minimap button now matches the Titan Panel button: hovering shows the same zone/dungeon listings, and right-clicking offers the same "Search Zone X" / "Search Dungeon Y" options, now combined into one menu with the settings checkboxes ("Zone entry notifications", "Hide minimap button") and "Open window". Also togglable via `/lfg zonenotify`.
+
+### Changed
+- Pulled the zone/dungeon tooltip-building and menu-building logic (previously only in Titan.lua) into shared `ns.AddZoneTooltipLines()` / `ns.AddZoneMenuItems()` in Core.lua, so the minimap button and Titan Panel button can't drift out of sync with each other.
 
 - Titan Panel integration (same mechanism Socialite uses: a LibDataBroker-1.1 "launcher" object, which Titan's own TitanLDB bridge turns into a panel button automatically - no direct Titan API calls needed). Vendored LibStub, CallbackHandler-1.0, and LibDataBroker-1.1 under `Libs/` so this works with or without Titan/Socialite installed.
   - Left-click: open/close the window (same as the minimap button).
