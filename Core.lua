@@ -623,8 +623,23 @@ SlashCmdList.LFGFOREVER = function(msg)
     elseif msg == "cleardeclined" then
         ns.ClearDeclined()
         ns.Print("Cleared all declined listings.")
+    elseif msg == "debugzone" then
+        local zoneName = ns.CurrentZoneName()
+        local chain = ns.CurrentZoneChain()
+        local chainList = {}
+        for id in pairs(chain) do chainList[#chainList + 1] = tostring(id) end
+        ns.Print("Zone: " .. (zoneName ~= "" and zoneName or "?")
+            .. "  |  Map chain: " .. (next(chain) and table.concat(chainList, ", ") or "none"))
+        ns.EnsureCategory()
+        ns.Print("Category: " .. ns.GetCategoryName(ns.db.categoryID))
+        for _, a in ipairs(ns.GetActivities(ns.db.categoryID)) do
+            local info = ns.GetActivityInfo(a.id)
+            local rawMapID = info and info.mapID
+            local secret = issecret and issecret(rawMapID)
+            ns.Print(a.id .. "  " .. a.name .. "  mapID=" .. tostring(Safe(rawMapID)) .. (secret and " (secret!)" or ""))
+        end
     elseif msg == "help" then
-        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window. /lfg cleardeclined - forget all declined listings.")
+        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window. /lfg cleardeclined - forget all declined listings. /lfg debugzone - print zone/activity map IDs for Titan debugging.")
     else
         ns.Toggle()
     end

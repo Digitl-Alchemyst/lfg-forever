@@ -14,6 +14,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Notes
 - The zone activity is found by matching an activity's name against your current zone text (e.g. "Excavation Site: Wetlands" while in Wetlands). The dungeon match is found via each activity's `mapID` field falling within your current zone/continent map chain - this field is new (patch 11.0.7+) and we haven't been able to confirm in-game whether this server populates it usefully for its dungeon activities. If the dungeon side never finds a match, that's the first thing to check.
+- Added `/lfg debugzone`: prints your current zone, its map ID chain, and every Dungeons-category activity's mapID, to check whether the dungeon match above can actually work on this server.
 
 ### Changed
 - When you're in a group but not the leader or an assistant, the Invite button on solo listings no longer greys out. It now reads "Suggest" and relays the invite to your group leader for approval instead - the same built-in behavior as the social menu / player frame "Invite" option, using the same `InviteUnit` call.
