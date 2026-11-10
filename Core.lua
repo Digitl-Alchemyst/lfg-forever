@@ -141,6 +141,98 @@ function ns.EnsureCategory()
     if cats[1] then db.categoryID = cats[1].id end
 end
 
+-- ------------------------------------------------------- zone matching
+-- For the Titan Panel plugin: finds, among a category's activities, one
+-- whose name matches the player's current zone (an outdoor "questing"
+-- activity, e.g. a dig site) and one whose own map falls within the
+-- player's current zone/continent but isn't named after it (a dungeon
+-- reachable from here).
+local function MapAncestors(mapID, depth)
+    local chain = {}
+    local id = mapID
+    for _ = 1, (depth or 4) do
+        if not id then break end
+        chain[id] = true
+        local info = Call(C_Map and C_Map.GetMapInfo, id)
+        id = type(info) == "table" and Safe(info.parentMapID) or nil
+    end
+    return chain
+end
+
+function ns.CurrentZoneChain()
+    local mapID = Safe(Call(C_Map and C_Map.GetBestMapForUnit, "player"))
+    if not mapID then return {} end
+    return MapAncestors(mapID, 4)
+end
+
+function ns.CurrentZoneName()
+    return Safe(GetRealZoneText()) or Safe(GetZoneText()) or ""
+end
+
+function ns.FindZoneAndDungeonActivity(categoryID)
+    local zoneName = ns.CurrentZoneName()
+    local chain = ns.CurrentZoneChain()
+    local zoneActivity, dungeonActivity
+    for _, a in ipairs(ns.GetActivities(categoryID)) do
+        local nameMatch = zoneName ~= "" and a.name and a.name:lower():find(zoneName:lower(), 1, true)
+        if nameMatch and not zoneActivity then
+            zoneActivity = a
+        elseif not nameMatch and not dungeonActivity then
+            local info = ns.GetActivityInfo(a.id)
+            local mapID = info and Safe(info.mapID)
+            if mapID and chain[mapID] then
+                dungeonActivity = a
+            end
+        end
+    end
+    return zoneActivity, dungeonActivity, zoneName
+end
+
+-- Active listings (from the last search) for one activity, groups first.
+function ns.ListByActivity(activityID, limit)
+    local list = {}
+    for _, e in ipairs(ns.results) do
+        if not e.delisted then
+            for _, id in ipairs(e.activityIDs) do
+                if id == activityID then list[#list + 1] = e; break end
+            end
+        end
+    end
+    table.sort(list, function(a, b)
+        if a.isSolo ~= b.isSolo then return not a.isSolo end
+        return a.order < b.order
+    end)
+    if limit and #list > limit then
+        for i = #list, limit + 1, -1 do list[i] = nil end
+    end
+    return list
+end
+
+function ns.CountByActivity(activityID)
+    local groups, solo = 0, 0
+    for _, e in ipairs(ns.results) do
+        if not e.delisted then
+            for _, id in ipairs(e.activityIDs) do
+                if id == activityID then
+                    if e.isSolo then solo = solo + 1 else groups = groups + 1 end
+                    break
+                end
+            end
+        end
+    end
+    return groups, solo
+end
+
+-- Runs a one-activity search and opens the window. Only call this from a
+-- click - see the note on ns.Search() above.
+function ns.SearchActivity(activityID)
+    if not activityID or not ns.db then return end
+    ns.db.activityIDs = { activityID }
+    if not ns.frame then ns.CreateUI() end
+    if not ns.frame:IsShown() then ns.frame:Show() end
+    ns.Search()
+end
+
 -- ---------------------------------------------------------------- search
 -- Must be called from a click / key press.
 function ns.Search()

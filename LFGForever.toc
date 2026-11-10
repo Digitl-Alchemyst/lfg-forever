@@ -1,12 +1,17 @@
 ## Interface: 16001
 ## Title: LFG Forever
-## Notes: A filterable Looking For Group browser (tank / healer / dps, level, text) with Invite and Request to Join buttons. Open with /lfg or the minimap button. The game's own Looking For Group window is left untouched.
+## Notes: A filterable Looking For Group browser (tank / healer / dps, level, text) with Invite and Request to Join buttons. Open with /lfg, the minimap button, or the Titan Panel button. The game's own Looking For Group window is left untouched.
 ## Author: Tri Chomez & Aldamir Nocturna
 ## Version: 1.0.1
 ## IconTexture: Interface\LFGFrame\LFG-Eye
 ## SavedVariables: LFGForeverDB
 ## AddonCompartmentFunc: LFGForever_OnCompartmentClick
 
+Libs\LibStub\LibStub.lua
+Libs\CallbackHandler-1.0\CallbackHandler-1.0.lua
+Libs\LibDataBroker-1.1\LibDataBroker-1.1.lua
+
 Core.lua
 UI.lua
 Minimap.lua
+Titan.lua
