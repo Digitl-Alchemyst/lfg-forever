@@ -106,6 +106,9 @@ local function ShowTooltip(row)
         for _, a in ipairs(e.activityIDs) do GameTooltip:AddLine(ns.GetActivityName(a), 0.8, 0.8, 0.8) end
     end
     if e.area then GameTooltip:AddLine("Zone: " .. e.area, 0.7, 0.7, 0.7) end
+    if not e.isSolo and e.name and ns.declined[e.name] then
+        GameTooltip:AddLine("Declined your request to join", 1, 0.3, 0.3)
+    end
     if e.comment ~= "" then
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine("\"" .. e.comment .. "\"", 1, 1, 1, true)
@@ -151,6 +154,9 @@ local function OpenRowMenu(row)
         else
             local b = root:CreateButton("Request to Join", function() ns.RequestInvite(e.name) end)
             if b.SetEnabled then b:SetEnabled(not e.hasSelf) end
+            if ns.declined[e.name] then
+                root:CreateButton("Clear declined status", function() ns.ClearDeclined(e.name) end)
+            end
         end
         root:CreateButton("Who is " .. e.name .. "?", function()
             if C_FriendList and C_FriendList.SendWho then C_FriendList.SendWho("n-\"" .. e.name .. "\"") end
@@ -232,7 +238,8 @@ local function UpdateRow(row, e)
     row.entry = e
     if not e then row:Hide(); return end
     row:Show()
-    local dim = e.delisted
+    local declinedAt = (not e.isSolo) and e.name and ns.declined[e.name]
+    local dim = e.delisted or declinedAt
     if e.isSolo then SetClassIcon(row.icon, e.classFile) else PartyIcon(row.icon) end
     row.icon:SetDesaturated(dim)
 
@@ -271,6 +278,9 @@ local function UpdateRow(row, e)
     if e.isSolo then
         row.action:SetText("Invite")
         row.action:SetEnabled(ns.CanInvite() and not e.hasSelf and not dim)
+    elseif declinedAt then
+        row.action:SetText("Declined")
+        row.action:SetEnabled(false)
     else
         local sent = e.name and ns.requested[e.name] and (GetTime() - ns.requested[e.name] < 120)
         row.action:SetText(sent and "Requested" or "Request")
@@ -474,6 +484,14 @@ function ns.CreateUI()
     delisted:SetScript("OnClick", function(self) db.hideDelisted = self:GetChecked() and true or false; ns.UpdateUI() end)
     f.delisted = delisted
 
+    local hideDeclined = CreateFrame("CheckButton", nil, f, "UICheckButtonTemplate")
+    hideDeclined:SetSize(24, 24)
+    hideDeclined:SetPoint("TOPLEFT", delisted, "BOTTOMLEFT", 0, 4)
+    local hdLbl = Label(hideDeclined, "Hide declined", "GameFontHighlightSmall")
+    hdLbl:SetPoint("LEFT", hideDeclined, "RIGHT", 0, 1)
+    hideDeclined:SetScript("OnClick", function(self) db.hideDeclined = self:GetChecked() and true or false; ns.UpdateUI() end)
+    f.hideDeclined = hideDeclined
+
     local sort = Button(f, "", 120, 20)
     sort:SetPoint("TOPRIGHT", -14, -96)
     sort:SetScript("OnClick", function(self)
@@ -585,6 +603,7 @@ function ns.UpdateUI()
     if not f.maxLevel:HasFocus() then f.maxLevel:SetText(db.maxLevel and tostring(db.maxLevel) or "") end
     if not f.find:HasFocus() and f.find:GetText() ~= (db.text or "") then f.find:SetText(db.text or "") end
     f.delisted:SetChecked(db.hideDelisted)
+    f.hideDeclined:SetChecked(db.hideDeclined)
 
     ns.ApplyFilters()
 

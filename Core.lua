@@ -25,6 +25,7 @@ local DEFAULTS = {
     maxLevel = nil,
     text = "",
     sort = "DEFAULT",      -- DEFAULT | LEVEL | NAME | MEMBERS
+    hideDeclined = true,
     point = nil,
 }
 
@@ -33,6 +34,7 @@ ns.ROLE_NAMES = { TANK = "Tank", HEALER = "Healer", DAMAGER = "DPS" }
 ns.results = {}      -- all parsed results from the last search
 ns.filtered = {}     -- results after our filters
 ns.requested = {}    -- leaderName -> time we sent a Request to Join
+ns.declined = {}     -- leaderName -> time they declined our Request to Join
 ns.searching = false
 ns.sawSecret = false
 
@@ -336,6 +338,7 @@ function ns.ApplyFilters()
         if ok and db.maxLevel and e.level and e.level > db.maxLevel then ok = false end
         if ok and not PassesRoles(e, db) then ok = false end
         if ok and not PassesText(e, db.text) then ok = false end
+        if ok and db.hideDeclined and e.name and ns.declined[e.name] then ok = false end
         if ok then ns.filtered[#ns.filtered + 1] = e end
     end
     table.sort(ns.filtered, SORTS[db.sort] or SORTS.DEFAULT)
@@ -395,6 +398,39 @@ function ns.CanInvite()
     return not IsInGroup() or UnitIsGroupLeader("player") or UnitIsGroupAssistant("player")
 end
 
+-- --------------------------------------------------------------- declines
+function ns.MarkDeclined(name)
+    if not name then return end
+    ns.requested[name] = nil
+    ns.declined[name] = GetTime()
+    ns.Print(name .. " declined your request to join.")
+    if ns.UpdateUI then ns.UpdateUI() end
+end
+
+function ns.ClearDeclined(name)
+    if name then
+        ns.declined[name] = nil
+    else
+        wipe(ns.declined)
+    end
+    if ns.UpdateUI then ns.UpdateUI() end
+end
+
+-- There's no dedicated event for a declined Request to Join, so we watch
+-- the system chat line it prints and match it against names we're waiting
+-- on. CHAT_MSG_SYSTEM is client/server generated, never player-authored
+-- chat, so this can't be spoofed through a whisper or other chat message.
+local function CheckDeclineMessage(msg)
+    if type(msg) ~= "string" then return end
+    local lower = msg:lower()
+    if not lower:find("declin", 1, true) then return end
+    for name in pairs(ns.requested) do
+        if lower:find(name:lower(), 1, true) then
+            ns.MarkDeclined(name)
+        end
+    end
+end
+
 -- ---------------------------------------------------------------- events
 local throttle
 local function RefreshSoon()
@@ -413,6 +449,7 @@ ev:RegisterEvent("LFG_LIST_SEARCH_RESULTS_RECEIVED")
 ev:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
 ev:RegisterEvent("LFG_LIST_SEARCH_FAILED")
 ev:RegisterEvent("GROUP_ROSTER_UPDATE")
+ev:RegisterEvent("CHAT_MSG_SYSTEM")
 ev:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
         if arg1 ~= ADDON then return end
@@ -432,6 +469,8 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         if ns.UpdateUI then ns.UpdateUI() end
     elseif event == "LFG_LIST_SEARCH_RESULT_UPDATED" or event == "GROUP_ROSTER_UPDATE" then
         if ns.frame and ns.frame:IsShown() then RefreshSoon() end
+    elseif event == "CHAT_MSG_SYSTEM" then
+        CheckDeclineMessage(arg1)
     end
 end)
 
@@ -465,8 +504,11 @@ SlashCmdList.LFGFOREVER = function(msg)
             ns.frame:SetPoint("CENTER")
         end
         ns.Print("Window position reset.")
+    elseif msg == "cleardeclined" then
+        ns.ClearDeclined()
+        ns.Print("Cleared all declined listings.")
     elseif msg == "help" then
-        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window.")
+        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window. /lfg cleardeclined - forget all declined listings.")
     else
         ns.Toggle()
     end
