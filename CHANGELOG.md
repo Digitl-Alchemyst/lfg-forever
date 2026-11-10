@@ -12,6 +12,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   - Hover: shows active listings for the current zone's own activity (e.g. a dig site named after the zone) and, separately, for a dungeon activity tied to this zone, each with a group/solo count and up to 5 names.
   - Right-click: menu to search just the zone's activity, or just the zone's dungeon, opening the window with results - each only offered if one was found.
 
+### Changed
+- Titan LDB object type switched from "launcher" to "data source": Titan hardcodes launchers to start on the right side of the bar regardless of what the addon requests, while data sources default to the left/center side - so a fresh install now lands in the right spot without manual repositioning. (An already-placed icon keeps wherever you've dragged it; Titan remembers that per plugin regardless of type.)
+
 ### Notes
 - The zone activity is found by matching an activity's name against your current zone text (e.g. "Excavation Site: Wetlands" while in Wetlands). The dungeon match is found via each activity's `mapID` field falling within your current zone/continent map chain - this field is new (patch 11.0.7+) and we haven't been able to confirm in-game whether this server populates it usefully for its dungeon activities. If the dungeon side never finds a match, that's the first thing to check.
 - Added `/lfg debugzone`: prints your current zone, its map ID chain, and every Dungeons-category activity's mapID, to check whether the dungeon match above can actually work on this server.

@@ -56,7 +56,10 @@ local function ShowZoneMenu(owner)
 end
 
 LDB:NewDataObject(ADDON, {
-    type = "launcher",
+    -- "data source" (not "launcher") so Titan defaults new installs to the
+    -- left/center side of the bar instead of the right - Titan hardcodes
+    -- launchers to start on the right regardless of what we request here.
+    type = "data source",
     icon = ICON,
     iconCoords = ICON_COORDS,
     label = "LFG Forever",
