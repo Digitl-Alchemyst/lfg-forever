@@ -22,6 +22,8 @@ A filterable Looking For Group browser for World of Warcraft — tank / healer /
 - `/lfg help` — list commands
 - `/groupfinder` — alias for `/lfg`
 
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
 ## Credits
 
 Created by: **@Tri Chomez** - Horde/PVP
