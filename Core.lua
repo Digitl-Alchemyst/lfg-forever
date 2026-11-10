@@ -417,17 +417,19 @@ function ns.ClearDeclined(name)
 end
 
 -- There's no dedicated event for a declined Request to Join, so we watch
--- the system chat line it prints and match it against names we're waiting
--- on. CHAT_MSG_SYSTEM is client/server generated, never player-authored
--- chat, so this can't be spoofed through a whisper or other chat message.
+-- the system chat line this server prints for it - "<Name> declines your
+-- group invitation request." (confirmed in-game; distinct from Blizzard's
+-- own ERR_DECLINE_GROUP_S text for a plain invite decline) - and match the
+-- extracted name against who we're waiting on. CHAT_MSG_SYSTEM is
+-- client/server generated, never player-authored chat, so this can't be
+-- spoofed through a whisper or other chat message.
+local DECLINE_PATTERN = "^(.+) declines your group invitation request%.$"
+
 local function CheckDeclineMessage(msg)
     if type(msg) ~= "string" then return end
-    local lower = msg:lower()
-    if not lower:find("declin", 1, true) then return end
-    for name in pairs(ns.requested) do
-        if lower:find(name:lower(), 1, true) then
-            ns.MarkDeclined(name)
-        end
+    local name = msg:match(DECLINE_PATTERN)
+    if name and ns.requested[name] then
+        ns.MarkDeclined(name)
     end
 end
 

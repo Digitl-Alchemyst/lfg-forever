@@ -12,7 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - `/lfg cleardeclined` and a per-row "Clear declined status" right-click option to forget a decline and try again.
 
 ### Notes
-- There's no documented Blizzard event for a declined Request to Join, so this is detected by watching the system chat line the client prints when a leader declines, matched against names you're waiting on. If this client phrases that message differently, declines may go undetected automatically — use the manual "Clear declined status" / re-request flow in that case, and let us know the exact wording so detection can be tightened.
+- There's no documented Blizzard event for a declined Request to Join, so this is detected by watching the system chat line this server prints for it: `"<Name> declines your group invitation request."` (confirmed in-game). Detection now matches that exact wording rather than a loose keyword guess.
 
 ## [1.0.1] - 2026-11-10
 
