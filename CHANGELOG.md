@@ -6,10 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- If the Titan bar text still never shows a number, this is Titan Panel's own "Show Plugin Text" per-plugin display setting, not a bug here - it's likely saved off from when this plugin briefly registered as a "launcher" type earlier (which defaults it off), and our own right-click menu replaces Titan's native per-icon menu so that checkbox can't be reached from our icon. Right-click an empty part of the Titan bar itself (not our icon) to get Titan's own menu, find "LFG Forever" in its category list, and enable "Show Plugin Text."
+
 ### Added
 - Zone entry chat notice: prints once when you enter a zone with a matching zone/dungeon activity (e.g. "Entered Westfall - Westfall, Deadmines nearby. Right-click the minimap/Titan icon to search."). Only reads already-known activity data - never triggers a search itself, so it can't get stuck the way a hover-triggered search did.
 - Minimap button now matches the Titan Panel button: hovering shows the same zone/dungeon listings, and right-clicking offers the same "Search Zone X" / "Search Dungeon Y" options.
-- Titan Panel bar now shows live counts next to the label: "`<questing groups>/<dungeon groups>`" for whatever activity matches your current zone, e.g. "2/0" - 0 on either side if no matching activity or no groups found.
+- Titan Panel bar now shows live counts next to the label: "`<questing groups>/<dungeon groups>`" when your zone has both, e.g. "2/0" - just a single number (no slash) when only a zone or only a dungeon activity applies here, or plain "0" when neither was found.
 - A proper Settings menu, nested as "Settings" inside the minimap/Titan right-click menu and also reachable via a small gear icon on the main window's title bar (next to the close button). Holds every toggle: "Zone entry notifications", "Hide minimap button", and a new "Automatic searching (experimental)" - off by default. When enabled, hovering the minimap/Titan button will attempt its own background search for the matched zone/dungeon activities (throttled to once per 20s per zone) instead of requiring a manual right-click search first. This is the same mechanism that got silently dropped by the server once already when it was unconditional; `ns.Search()` now self-heals a stuck search after 12s regardless of cause, so the worst case if it's dropped again is a 12s "Searching..." rather than forever - but it's opt-in and clearly labeled experimental rather than forced on.
 
 ### Changed

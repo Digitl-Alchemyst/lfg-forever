@@ -36,7 +36,7 @@ local dataobj = LDB:NewDataObject(ADDON, {
     icon = ICON,
     iconCoords = ICON_COORDS,
     label = "LFG Forever",
-    text = "0/0",
+    text = "0",
     OnClick = function(self, button)
         if button == "RightButton" then
             ShowZoneMenu(self)
@@ -58,14 +58,21 @@ local dataobj = LDB:NewDataObject(ADDON, {
     end,
 })
 
--- Bar text: "<questing groups>/<dungeon groups>" for whatever activity
--- matches the current zone, 0 for either side with no match or no groups.
+-- Bar text: "<questing groups>/<dungeon groups>" when the zone has both a
+-- matching zone activity and a dungeon; just a single number when only one
+-- of the two applies here (no slash when there's nothing to pair it with);
+-- plain "0" when neither was found.
 function ns.RefreshTitanText()
     if not ns.db then return end
     ns.EnsureCategory()
     local zoneActivity, dungeonActivity = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
-    local qGroups, dGroups = 0, 0
-    if zoneActivity then qGroups = ns.CountByActivity(zoneActivity.id) end
-    if dungeonActivity then dGroups = ns.CountByActivity(dungeonActivity.id) end
-    dataobj.text = qGroups .. "/" .. dGroups
+    if zoneActivity and dungeonActivity then
+        dataobj.text = ns.CountByActivity(zoneActivity.id) .. "/" .. ns.CountByActivity(dungeonActivity.id)
+    elseif zoneActivity then
+        dataobj.text = tostring(ns.CountByActivity(zoneActivity.id))
+    elseif dungeonActivity then
+        dataobj.text = tostring(ns.CountByActivity(dungeonActivity.id))
+    else
+        dataobj.text = "0"
+    end
 end
