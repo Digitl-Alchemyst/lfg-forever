@@ -363,6 +363,9 @@ function ns.Whisper(name)
     end
 end
 
+-- Same call either way - if we're not the leader/assist, the game itself
+-- relays this to the leader as a suggestion instead of a direct invite
+-- (the same behavior as the built-in social menu / player frame "Invite").
 function ns.Invite(name)
     if not name then return end
     if C_PartyInfo and C_PartyInfo.InviteUnit then
@@ -370,7 +373,11 @@ function ns.Invite(name)
     elseif InviteUnit then
         InviteUnit(name)
     end
-    ns.Print("Invited " .. name .. ".")
+    if ns.CanInvite() then
+        ns.Print("Invited " .. name .. ".")
+    else
+        ns.Print("Suggested inviting " .. name .. " to your group leader.")
+    end
 end
 
 -- The same call as "Request to Join" on a player's right-click menu.

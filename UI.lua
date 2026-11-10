@@ -120,6 +120,9 @@ local function ShowTooltip(row)
             GameTooltip:AddLine(" ")
             GameTooltip:AddLine("Can play: " .. (#r > 0 and table.concat(r, ", ") or "not set"), 0.4, 1, 0.4)
         end
+        if not ns.CanInvite() then
+            GameTooltip:AddLine("Not the group leader - this will suggest the invite instead", 1, 0.82, 0)
+        end
     else
         GameTooltip:AddLine(" ")
         GameTooltip:AddLine(e.numMembers .. " members:", 1, 0.82, 0)
@@ -149,8 +152,9 @@ local function OpenRowMenu(row)
         root:CreateTitle(e.name)
         root:CreateButton("Whisper", function() ns.Whisper(e.name) end)
         if e.isSolo then
-            local b = root:CreateButton("Invite to group", function() ns.Invite(e.name) end)
-            if b.SetEnabled then b:SetEnabled(ns.CanInvite() and not e.hasSelf) end
+            local label = ns.CanInvite() and "Invite to group" or "Suggest invite to leader"
+            local b = root:CreateButton(label, function() ns.Invite(e.name) end)
+            if b.SetEnabled then b:SetEnabled(not e.hasSelf) end
         else
             local b = root:CreateButton("Request to Join", function() ns.RequestInvite(e.name) end)
             if b.SetEnabled then b:SetEnabled(not e.hasSelf) end
@@ -276,8 +280,8 @@ local function UpdateRow(row, e)
     if dim then row.comment:SetTextColor(0.5, 0.5, 0.5) else row.comment:SetTextColor(0.9, 0.9, 0.9) end
 
     if e.isSolo then
-        row.action:SetText("Invite")
-        row.action:SetEnabled(ns.CanInvite() and not e.hasSelf and not dim)
+        row.action:SetText(ns.CanInvite() and "Invite" or "Suggest")
+        row.action:SetEnabled(not e.hasSelf and not dim)
     elseif declinedAt then
         row.action:SetText("Declined")
         row.action:SetEnabled(false)

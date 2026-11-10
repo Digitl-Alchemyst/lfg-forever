@@ -6,6 +6,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- When you're in a group but not the leader or an assistant, the Invite button on solo listings no longer greys out. It now reads "Suggest" and relays the invite to your group leader for approval instead - the same built-in behavior as the social menu / player frame "Invite" option, using the same `InviteUnit` call.
+
 ### Added
 - Declined Request to Join is now reflected in the UI: the row dims and its button shows "Declined" (disabled) instead of "Request".
 - "Hide declined" filter checkbox (on by default) to hide groups whose leader already declined your request.
