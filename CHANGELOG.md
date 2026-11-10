@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- Zone entry chat notice: prints once when you enter a zone with a matching zone/dungeon activity (e.g. "Entered Westfall - Westfall, Deadmines nearby. Right-click the minimap/Titan icon to search."). Only reads already-known activity data - never triggers a search itself, so it can't get stuck the way a hover-triggered search did.
+- Minimap button right-click now opens a settings menu (previously just printed a hint) with checkboxes for "Zone entry notifications" and "Hide minimap button", plus "Open window". Also togglable via `/lfg zonenotify`.
+
 - Titan Panel integration (same mechanism Socialite uses: a LibDataBroker-1.1 "launcher" object, which Titan's own TitanLDB bridge turns into a panel button automatically - no direct Titan API calls needed). Vendored LibStub, CallbackHandler-1.0, and LibDataBroker-1.1 under `Libs/` so this works with or without Titan/Socialite installed.
   - Left-click: open/close the window (same as the minimap button).
   - Hover: shows active listings (from the last right-click search) for the current zone's own activity (e.g. a dig site named after the zone) and, separately, for a dungeon activity tied to this zone, each with a group/solo count and up to 5 names.

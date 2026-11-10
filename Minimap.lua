@@ -3,6 +3,32 @@ local ADDON, ns = ...
 
 local btn
 
+local function Menu(owner, generator)
+    if MenuUtil and MenuUtil.CreateContextMenu then
+        MenuUtil.CreateContextMenu(owner, generator)
+    else
+        ns.Print("Menus aren't available on this client.")
+    end
+end
+
+local function ShowSettingsMenu(owner)
+    if not ns.db then return end
+    Menu(owner, function(_, root)
+        root:CreateTitle("LFG Forever Settings")
+        root:CreateCheckbox("Zone entry notifications", function() return ns.db.zoneNotify end, function()
+            ns.db.zoneNotify = not ns.db.zoneNotify
+            return MenuResponse and MenuResponse.Refresh
+        end)
+        root:CreateCheckbox("Hide minimap button", function() return ns.db.minimap.hide end, function()
+            ns.db.minimap.hide = not ns.db.minimap.hide
+            ns.UpdateMinimap()
+            return MenuResponse and MenuResponse.Refresh
+        end)
+        root:CreateDivider()
+        root:CreateButton("Open window", function() ns.Toggle() end)
+    end)
+end
+
 local function Place()
     local angle = math.rad(ns.db.minimap.angle or 215)
     local r = (Minimap:GetWidth() / 2) + 5
@@ -51,9 +77,9 @@ function ns.InitMinimap()
     border:SetSize(53, 53)
     border:SetPoint("TOPLEFT")
 
-    btn:SetScript("OnClick", function(_, button)
+    btn:SetScript("OnClick", function(self, button)
         if button == "RightButton" then
-            ns.Print("Drag the button to move it.  /lfg minimap hides it.")
+            ShowSettingsMenu(self)
         else
             ns.Toggle()
         end
@@ -63,7 +89,8 @@ function ns.InitMinimap()
     btn:SetScript("OnEnter", function(self)
         GameTooltip:SetOwner(self, "ANCHOR_LEFT")
         GameTooltip:AddLine("LFG Forever")
-        GameTooltip:AddLine("Click: open the group browser", 1, 1, 1)
+        GameTooltip:AddLine("Left-click: open the group browser", 1, 1, 1)
+        GameTooltip:AddLine("Right-click: settings", 1, 1, 1)
         GameTooltip:AddLine("Drag: move this button", 1, 1, 1)
         GameTooltip:AddLine("/lfg also opens it", 0.6, 0.6, 0.6)
         GameTooltip:Show()

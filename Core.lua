@@ -26,6 +26,7 @@ local DEFAULTS = {
     text = "",
     sort = "DEFAULT",      -- DEFAULT | LEVEL | NAME | MEMBERS
     hideDeclined = true,
+    zoneNotify = true,
     point = nil,
 }
 
@@ -202,6 +203,27 @@ function ns.FindZoneAndDungeonActivity(categoryID)
     end
 
     return zoneActivity, dungeonActivity, zoneName
+end
+
+-- Prints a one-time-per-zone chat notice when you enter a zone with a
+-- matching activity (toggle: db.zoneNotify, off by default disables this
+-- entirely). Only reads already-known data - never triggers a search.
+local lastNotifiedZoneKey
+function ns.CheckZoneNotify()
+    if not ns.db or not ns.db.zoneNotify then return end
+    ns.EnsureCategory()
+    local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
+    if not zoneActivity and not dungeonActivity then
+        lastNotifiedZoneKey = nil
+        return
+    end
+    local key = zoneName .. "|" .. (zoneActivity and zoneActivity.id or "") .. "|" .. (dungeonActivity and dungeonActivity.id or "")
+    if key == lastNotifiedZoneKey then return end
+    lastNotifiedZoneKey = key
+    local parts = {}
+    if zoneActivity then parts[#parts + 1] = zoneActivity.name end
+    if dungeonActivity then parts[#parts + 1] = dungeonActivity.name .. " nearby" end
+    ns.Print("Entered " .. zoneName .. " - " .. table.concat(parts, ", ") .. ". Right-click the minimap/Titan icon to search.")
 end
 
 -- Active listings (from the last search) for one activity, groups first,
@@ -595,6 +617,7 @@ ev:RegisterEvent("LFG_LIST_SEARCH_RESULT_UPDATED")
 ev:RegisterEvent("LFG_LIST_SEARCH_FAILED")
 ev:RegisterEvent("GROUP_ROSTER_UPDATE")
 ev:RegisterEvent("CHAT_MSG_SYSTEM")
+ev:RegisterEvent("ZONE_CHANGED_NEW_AREA")
 ev:SetScript("OnEvent", function(_, event, arg1)
     if event == "ADDON_LOADED" then
         if arg1 ~= ADDON then return end
@@ -602,6 +625,8 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         CopyDefaults(DEFAULTS, LFGForeverDB)
         ns.db = LFGForeverDB
         if ns.InitMinimap then ns.InitMinimap() end
+    elseif event == "ZONE_CHANGED_NEW_AREA" then
+        ns.CheckZoneNotify()
     elseif event == "LFG_LIST_SEARCH_RESULTS_RECEIVED" then
         ns.searching = false
         ns.searchFailed = false
@@ -652,6 +677,9 @@ SlashCmdList.LFGFOREVER = function(msg)
     elseif msg == "cleardeclined" then
         ns.ClearDeclined()
         ns.Print("Cleared all declined listings.")
+    elseif msg == "zonenotify" then
+        ns.db.zoneNotify = not ns.db.zoneNotify
+        ns.Print("Zone entry notifications " .. (ns.db.zoneNotify and "enabled" or "disabled") .. ".")
     elseif msg == "debugzone" then
         ns.EnsureCategory()
         local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
@@ -659,7 +687,7 @@ SlashCmdList.LFGFOREVER = function(msg)
         ns.Print("Zone activity: " .. (zoneActivity and zoneActivity.name or "none found"))
         ns.Print("Dungeon activity: " .. (dungeonActivity and dungeonActivity.name or "none found (or none expected here)"))
     elseif msg == "help" then
-        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window. /lfg cleardeclined - forget all declined listings. /lfg debugzone - show what the Titan plugin matched for your current zone.")
+        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window. /lfg cleardeclined - forget all declined listings. /lfg zonenotify - toggle zone entry notifications. /lfg debugzone - show what the Titan plugin matched for your current zone. Right-click the minimap button for a settings menu.")
     else
         ns.Toggle()
     end
