@@ -31,6 +31,22 @@ local function AddActivitySection(tooltip, title, activity)
     end
 end
 
+-- Keeps the tooltip self-sufficient instead of depending on the main
+-- window ever having been searched. Runs from OnTooltipShow (a real
+-- mouse-driven callback, like the Search button click this addon's
+-- design rules require), throttled so re-hovering doesn't spam searches.
+local AUTO_SEARCH_COOLDOWN = 20 -- seconds
+local lastAutoZone, lastAutoTime
+
+local function EnsureBackgroundSearch(zoneName, ids)
+    if not ns.db or #ids == 0 or ns.searching then return end
+    local stale = not lastAutoTime or (GetTime() - lastAutoTime) > AUTO_SEARCH_COOLDOWN
+    if lastAutoZone == zoneName and not stale then return end
+    lastAutoZone, lastAutoTime = zoneName, GetTime()
+    ns.db.activityIDs = ids
+    ns.Search()
+end
+
 local function ShowZoneMenu(owner)
     if not ns.db then return end
     ns.EnsureCategory()
@@ -76,19 +92,23 @@ LDB:NewDataObject(ADDON, {
             tooltip:AddLine("Loading...", 0.6, 0.6, 0.6)
             return
         end
-        if not ns.lastSearch then
-            tooltip:AddLine(" ")
-            tooltip:AddLine("No recent search - left-click to open and search", 0.6, 0.6, 0.6, true)
-            return
-        end
         ns.EnsureCategory()
         local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
+        local ids = {}
+        if zoneActivity then ids[#ids + 1] = zoneActivity.id end
+        if dungeonActivity then ids[#ids + 1] = dungeonActivity.id end
+        EnsureBackgroundSearch(zoneName, ids)
+
         if not zoneActivity and not dungeonActivity then
             tooltip:AddLine(" ")
             tooltip:AddLine("No matching activity for " .. (zoneName ~= "" and zoneName or "this zone"), 0.6, 0.6, 0.6)
         else
             AddActivitySection(tooltip, "Zone", zoneActivity)
             AddActivitySection(tooltip, "Dungeon", dungeonActivity)
+        end
+        if ns.searching then
+            tooltip:AddLine(" ")
+            tooltip:AddLine("Searching...", 0.6, 0.6, 0.6)
         end
         tooltip:AddLine(" ")
         tooltip:AddLine("Left-click: open window.  Right-click: search.", 0.5, 0.5, 0.5)

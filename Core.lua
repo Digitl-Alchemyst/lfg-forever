@@ -144,26 +144,30 @@ end
 -- ------------------------------------------------------- zone matching
 -- For the Titan Panel plugin: finds, among a category's activities, one
 -- whose name matches the player's current zone (an outdoor "questing"
--- activity, e.g. a dig site) and one whose own map falls within the
--- player's current zone/continent but isn't named after it (a dungeon
--- reachable from here).
-local function MapAncestors(mapID, depth)
-    local chain = {}
-    local id = mapID
-    for _ = 1, (depth or 4) do
-        if not id then break end
-        chain[id] = true
-        local info = Call(C_Map and C_Map.GetMapInfo, id)
-        id = type(info) == "table" and Safe(info.parentMapID) or nil
-    end
-    return chain
-end
-
-function ns.CurrentZoneChain()
-    local mapID = Safe(Call(C_Map and C_Map.GetBestMapForUnit, "player"))
-    if not mapID then return {} end
-    return MapAncestors(mapID, 4)
-end
+-- activity, e.g. a dig site) and one that's a known dungeon reachable
+-- from this zone.
+--
+-- The activity's own .mapID field was tried first but isn't reliably
+-- scoped to the entrance zone on this server (it matched Gnomeregan /
+-- Dun Morogh while standing in Thousand Needles, a different
+-- continent), so this is static classic-Azeroth zone/dungeon data
+-- instead. Tell us if any of these are wrong for this server's content.
+local ZONE_DUNGEONS = {
+    ["Westfall"] = { "Deadmines" },
+    ["Dun Morogh"] = { "Gnomeregan" },
+    ["Badlands"] = { "Uldaman" },
+    ["Ashenvale"] = { "Blackfathom Deeps" },
+    ["Silverpine Forest"] = { "Shadowfang Keep" },
+    ["Tirisfal Glades"] = { "Scarlet Monastery" },
+    ["The Barrens"] = { "Wailing Caverns", "Razorfen Kraul", "Razorfen Downs" },
+    ["Desolace"] = { "Maraudon" },
+    ["Feralas"] = { "Dire Maul" },
+    ["Tanaris"] = { "Zul'Farrak" },
+    ["Western Plaguelands"] = { "Scholomance" },
+    ["Eastern Plaguelands"] = { "Stratholme" },
+    ["Burning Steppes"] = { "Blackrock Depths", "Blackrock Spire" },
+    ["Swamp of Sorrows"] = { "Sunken Temple", "Atal'Hakkar" },
+}
 
 function ns.CurrentZoneName()
     return Safe(GetRealZoneText()) or Safe(GetZoneText()) or ""
@@ -171,30 +175,47 @@ end
 
 function ns.FindZoneAndDungeonActivity(categoryID)
     local zoneName = ns.CurrentZoneName()
-    local chain = ns.CurrentZoneChain()
+    local activities = ns.GetActivities(categoryID)
     local zoneActivity, dungeonActivity
-    for _, a in ipairs(ns.GetActivities(categoryID)) do
-        local nameMatch = zoneName ~= "" and a.name and a.name:lower():find(zoneName:lower(), 1, true)
-        if nameMatch and not zoneActivity then
-            zoneActivity = a
-        elseif not nameMatch and not dungeonActivity then
-            local info = ns.GetActivityInfo(a.id)
-            local mapID = info and Safe(info.mapID)
-            if mapID and chain[mapID] then
-                dungeonActivity = a
+
+    if zoneName ~= "" then
+        for _, a in ipairs(activities) do
+            if a.name and a.name:lower():find(zoneName:lower(), 1, true) then
+                zoneActivity = a
+                break
             end
         end
     end
+
+    local candidates = ZONE_DUNGEONS[zoneName]
+    if candidates then
+        for _, a in ipairs(activities) do
+            for _, dname in ipairs(candidates) do
+                if a.name and a.name:lower():find(dname:lower(), 1, true) then
+                    dungeonActivity = a
+                    break
+                end
+            end
+            if dungeonActivity then break end
+        end
+    end
+
     return zoneActivity, dungeonActivity, zoneName
 end
 
--- Active listings (from the last search) for one activity, groups first.
+-- Active listings (from the last search) for one activity, groups first,
+-- within +/- 4 levels of the player (unknown levels always pass).
 function ns.ListByActivity(activityID, limit)
+    local myLevel = UnitLevel("player")
     local list = {}
     for _, e in ipairs(ns.results) do
         if not e.delisted then
+            local matches = false
             for _, id in ipairs(e.activityIDs) do
-                if id == activityID then list[#list + 1] = e; break end
+                if id == activityID then matches = true; break end
+            end
+            if matches and (not e.level or not myLevel or math.abs(e.level - myLevel) <= 4) then
+                list[#list + 1] = e
             end
         end
     end
@@ -210,15 +231,8 @@ end
 
 function ns.CountByActivity(activityID)
     local groups, solo = 0, 0
-    for _, e in ipairs(ns.results) do
-        if not e.delisted then
-            for _, id in ipairs(e.activityIDs) do
-                if id == activityID then
-                    if e.isSolo then solo = solo + 1 else groups = groups + 1 end
-                    break
-                end
-            end
-        end
+    for _, e in ipairs(ns.ListByActivity(activityID)) do
+        if e.isSolo then solo = solo + 1 else groups = groups + 1 end
     end
     return groups, solo
 end
@@ -624,22 +638,13 @@ SlashCmdList.LFGFOREVER = function(msg)
         ns.ClearDeclined()
         ns.Print("Cleared all declined listings.")
     elseif msg == "debugzone" then
-        local zoneName = ns.CurrentZoneName()
-        local chain = ns.CurrentZoneChain()
-        local chainList = {}
-        for id in pairs(chain) do chainList[#chainList + 1] = tostring(id) end
-        ns.Print("Zone: " .. (zoneName ~= "" and zoneName or "?")
-            .. "  |  Map chain: " .. (next(chain) and table.concat(chainList, ", ") or "none"))
         ns.EnsureCategory()
-        ns.Print("Category: " .. ns.GetCategoryName(ns.db.categoryID))
-        for _, a in ipairs(ns.GetActivities(ns.db.categoryID)) do
-            local info = ns.GetActivityInfo(a.id)
-            local rawMapID = info and info.mapID
-            local secret = issecret and issecret(rawMapID)
-            ns.Print(a.id .. "  " .. a.name .. "  mapID=" .. tostring(Safe(rawMapID)) .. (secret and " (secret!)" or ""))
-        end
+        local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
+        ns.Print("Zone: " .. (zoneName ~= "" and zoneName or "?"))
+        ns.Print("Zone activity: " .. (zoneActivity and zoneActivity.name or "none found"))
+        ns.Print("Dungeon activity: " .. (dungeonActivity and dungeonActivity.name or "none found (or none expected here)"))
     elseif msg == "help" then
-        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window. /lfg cleardeclined - forget all declined listings. /lfg debugzone - print zone/activity map IDs for Titan debugging.")
+        ns.Print("/lfg - open or close the browser. /lfg minimap - show/hide the minimap button. /lfg reset - recenter the window. /lfg cleardeclined - forget all declined listings. /lfg debugzone - show what the Titan plugin matched for your current zone.")
     else
         ns.Toggle()
     end

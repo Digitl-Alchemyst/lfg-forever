@@ -15,9 +15,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Changed
 - Titan LDB object type switched from "launcher" to "data source": Titan hardcodes launchers to start on the right side of the bar regardless of what the addon requests, while data sources default to the left/center side - so a fresh install now lands in the right spot without manual repositioning. (An already-placed icon keeps wherever you've dragged it; Titan remembers that per plugin regardless of type.)
 
-### Notes
-- The zone activity is found by matching an activity's name against your current zone text (e.g. "Excavation Site: Wetlands" while in Wetlands). The dungeon match is found via each activity's `mapID` field falling within your current zone/continent map chain - this field is new (patch 11.0.7+) and we haven't been able to confirm in-game whether this server populates it usefully for its dungeon activities. If the dungeon side never finds a match, that's the first thing to check.
-- Added `/lfg debugzone`: prints your current zone, its map ID chain, and every Dungeons-category activity's mapID, to check whether the dungeon match above can actually work on this server.
+### Fixed
+- The Titan tooltip no longer requires a prior manual search - hovering now triggers its own background search (throttled to once per 20s per zone) for whichever zone/dungeon activities were found, so the first hover populates it instead of saying "No recent search."
+- The dungeon match no longer uses each activity's `mapID` field - in testing it matched Gnomeregan/Dun Morogh while standing in Thousand Needles (a different continent), so it wasn't reliably scoped to the entrance zone on this server. Replaced with a static classic-Azeroth zone -> dungeon name table (see `ZONE_DUNGEONS` in Core.lua). `/lfg debugzone` now reports what it matched for your current zone instead of raw map IDs - let us know if any zone/dungeon pairing is wrong so the table can be corrected.
+- Titan tooltip counts/listings now only include results within +/- 4 levels of the player (the main window opened via right-click search is unaffected - it still shows everything, filterable there as usual).
 
 ### Changed
 - When you're in a group but not the leader or an assistant, the Invite button on solo listings no longer greys out. It now reads "Suggest" and relays the invite to your group leader for approval instead - the same built-in behavior as the social menu / player frame "Invite" option, using the same `InviteUnit` call.
