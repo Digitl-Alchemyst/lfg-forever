@@ -22,11 +22,13 @@ local function ShowZoneMenu(owner)
     MenuUtil.CreateContextMenu(owner, function(_, root)
         ns.AddZoneMenuItems(root)
         root:CreateDivider()
+        local settings = root:CreateButton("Settings")
+        ns.AddSettingsMenuItems(settings)
         root:CreateButton("Open window", function() ns.Toggle() end)
     end)
 end
 
-LDB:NewDataObject(ADDON, {
+local dataobj = LDB:NewDataObject(ADDON, {
     -- "data source" (not "launcher") so Titan defaults new installs to the
     -- left/center side of the bar instead of the right - Titan hardcodes
     -- launchers to start on the right regardless of what we request here.
@@ -34,6 +36,7 @@ LDB:NewDataObject(ADDON, {
     icon = ICON,
     iconCoords = ICON_COORDS,
     label = "LFG Forever",
+    text = "0/0",
     OnClick = function(self, button)
         if button == "RightButton" then
             ShowZoneMenu(self)
@@ -45,7 +48,8 @@ LDB:NewDataObject(ADDON, {
     -- works from a real click (see the note at the top of Core.lua) - a
     -- hover-triggered search was tried here and got silently dropped by
     -- the server, leaving ns.searching stuck true forever. Right-click is
-    -- the one reliable trigger, so that's what this points you to.
+    -- the one reliable trigger (or db.autoSearch, opted into via Settings),
+    -- so that's what this points you to.
     OnTooltipShow = function(tooltip)
         tooltip:AddLine("LFG Forever", 1, 0.82, 0)
         ns.AddZoneTooltipLines(tooltip)
@@ -53,3 +57,15 @@ LDB:NewDataObject(ADDON, {
         tooltip:AddLine("Left-click: open window.  Right-click: search.", 0.5, 0.5, 0.5)
     end,
 })
+
+-- Bar text: "<questing groups>/<dungeon groups>" for whatever activity
+-- matches the current zone, 0 for either side with no match or no groups.
+function ns.RefreshTitanText()
+    if not ns.db then return end
+    ns.EnsureCategory()
+    local zoneActivity, dungeonActivity = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
+    local qGroups, dGroups = 0, 0
+    if zoneActivity then qGroups = ns.CountByActivity(zoneActivity.id) end
+    if dungeonActivity then dGroups = ns.CountByActivity(dungeonActivity.id) end
+    dataobj.text = qGroups .. "/" .. dGroups
+end

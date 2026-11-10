@@ -11,23 +11,15 @@ local function Menu(owner, generator)
     end
 end
 
--- Same zone/dungeon search options Titan's right-click offers, plus the
--- settings checkboxes, in one menu.
+-- Same zone/dungeon search options Titan's right-click offers, plus a
+-- nested Settings submenu, in one menu.
 local function ShowMenu(owner)
     if not ns.db then return end
     Menu(owner, function(_, root)
         ns.AddZoneMenuItems(root)
         root:CreateDivider()
-        root:CreateCheckbox("Zone entry notifications", function() return ns.db.zoneNotify end, function()
-            ns.db.zoneNotify = not ns.db.zoneNotify
-            return MenuResponse and MenuResponse.Refresh
-        end)
-        root:CreateCheckbox("Hide minimap button", function() return ns.db.minimap.hide end, function()
-            ns.db.minimap.hide = not ns.db.minimap.hide
-            ns.UpdateMinimap()
-            return MenuResponse and MenuResponse.Refresh
-        end)
-        root:CreateDivider()
+        local settings = root:CreateButton("Settings")
+        ns.AddSettingsMenuItems(settings)
         root:CreateButton("Open window", function() ns.Toggle() end)
     end)
 end

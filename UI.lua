@@ -331,6 +331,30 @@ function ns.CreateUI()
     end
     title:SetText("LFG Forever")
 
+    local gear = CreateFrame("Button", nil, f)
+    gear:SetSize(16, 16)
+    if f.CloseButton then
+        gear:SetPoint("RIGHT", f.CloseButton, "LEFT", -2, 0)
+    else
+        gear:SetPoint("TOPRIGHT", -34, -6)
+    end
+    gear:SetNormalTexture("Interface\\Buttons\\UI-OptionsButton")
+    gear:SetPushedTexture("Interface\\Buttons\\UI-OptionsButton")
+    gear:SetHighlightTexture("Interface\\Buttons\\UI-OptionsButton", "ADD")
+    gear:SetScript("OnClick", function(self)
+        Menu(self, function(_, root)
+            root:CreateTitle("LFG Forever Settings")
+            ns.AddSettingsMenuItems(root)
+        end)
+    end)
+    gear:SetScript("OnEnter", function(self)
+        GameTooltip:SetOwner(self, "ANCHOR_LEFT")
+        GameTooltip:AddLine("Settings")
+        GameTooltip:Show()
+    end)
+    gear:SetScript("OnLeave", function() GameTooltip:Hide() end)
+    f.gear = gear
+
     -- ---- row 1: category, activity, search
     local cat = Button(f, "", 150)
     cat:SetPoint("TOPLEFT", 14, -32)

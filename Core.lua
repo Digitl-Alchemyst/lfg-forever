@@ -27,6 +27,7 @@ local DEFAULTS = {
     sort = "DEFAULT",      -- DEFAULT | LEVEL | NAME | MEMBERS
     hideDeclined = true,
     zoneNotify = true,
+    autoSearch = false,
     point = nil,
 }
 
@@ -298,9 +299,29 @@ local function AddActivitySection(tooltip, title, activity)
     end
 end
 
+-- Opt-in, off by default: db.autoSearch gates a hover-triggered background
+-- search, throttled per zone. This got silently dropped by the server the
+-- one time it was tried unconditionally (not a real click), leaving
+-- ns.searching stuck - ns.Search()'s 12s self-heal timeout now bounds how
+-- long that can last, so this is offered as an experimental opt-in rather
+-- than forced on everyone.
+local AUTO_SEARCH_COOLDOWN = 20 -- seconds
+local lastAutoZone, lastAutoTime
+local function MaybeAutoSearch(zoneName, zoneActivity, dungeonActivity)
+    if not ns.db.autoSearch or ns.searching then return end
+    local ids = {}
+    if zoneActivity then ids[#ids + 1] = zoneActivity.id end
+    if dungeonActivity then ids[#ids + 1] = dungeonActivity.id end
+    if #ids == 0 then return end
+    local stale = not lastAutoTime or (GetTime() - lastAutoTime) > AUTO_SEARCH_COOLDOWN
+    if lastAutoZone == zoneName and not stale then return end
+    lastAutoZone, lastAutoTime = zoneName, GetTime()
+    ns.db.activityIDs = ids
+    ns.Search()
+end
+
 -- Adds the zone/dungeon listing sections (and a "Searching..." line if
--- one's in flight) to any GameTooltip-like object. Deliberately never
--- triggers a search itself - see the note on ns.Search() above.
+-- one's in flight) to any GameTooltip-like object.
 function ns.AddZoneTooltipLines(tooltip)
     if not ns.db then
         tooltip:AddLine("Loading...", 0.6, 0.6, 0.6)
@@ -308,6 +329,7 @@ function ns.AddZoneTooltipLines(tooltip)
     end
     ns.EnsureCategory()
     local zoneActivity, dungeonActivity, zoneName = ns.FindZoneAndDungeonActivity(ns.db.categoryID)
+    MaybeAutoSearch(zoneName, zoneActivity, dungeonActivity)
     if not zoneActivity and not dungeonActivity then
         tooltip:AddLine(" ")
         tooltip:AddLine("No matching activity for " .. (zoneName ~= "" and zoneName or "this zone"), 0.6, 0.6, 0.6)
@@ -337,6 +359,27 @@ function ns.AddZoneMenuItems(root)
     if not zoneActivity and not dungeonActivity then
         root:CreateTitle("No activity found for " .. (zoneName ~= "" and zoneName or "this zone"))
     end
+end
+
+-- Adds every addon setting as a checkbox to a menu descriptor - works on a
+-- context menu root or on a nested submenu button, so it's shared by the
+-- minimap button, the Titan Panel button, and the main window's settings
+-- icon, and the three can't drift out of sync with each other.
+function ns.AddSettingsMenuItems(parent)
+    if not ns.db then return end
+    parent:CreateCheckbox("Zone entry notifications", function() return ns.db.zoneNotify end, function()
+        ns.db.zoneNotify = not ns.db.zoneNotify
+        return MenuResponse and MenuResponse.Refresh
+    end)
+    parent:CreateCheckbox("Automatic searching (experimental)", function() return ns.db.autoSearch end, function()
+        ns.db.autoSearch = not ns.db.autoSearch
+        return MenuResponse and MenuResponse.Refresh
+    end)
+    parent:CreateCheckbox("Hide minimap button", function() return ns.db.minimap.hide end, function()
+        ns.db.minimap.hide = not ns.db.minimap.hide
+        if ns.UpdateMinimap then ns.UpdateMinimap() end
+        return MenuResponse and MenuResponse.Refresh
+    end)
 end
 
 -- ---------------------------------------------------------------- search
@@ -676,6 +719,7 @@ local function RefreshSoon()
         throttle = false
         ns.CollectResults()
         if ns.UpdateUI then ns.UpdateUI() end
+        if ns.RefreshTitanText then ns.RefreshTitanText() end
     end)
 end
 
@@ -694,18 +738,22 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         CopyDefaults(DEFAULTS, LFGForeverDB)
         ns.db = LFGForeverDB
         if ns.InitMinimap then ns.InitMinimap() end
+        if ns.RefreshTitanText then ns.RefreshTitanText() end
     elseif event == "ZONE_CHANGED_NEW_AREA" then
         ns.CheckZoneNotify()
+        if ns.RefreshTitanText then ns.RefreshTitanText() end
     elseif event == "LFG_LIST_SEARCH_RESULTS_RECEIVED" then
         ns.searching = false
         ns.searchFailed = false
         ns.lastSearch = GetTime()
         ns.CollectResults()
         if ns.UpdateUI then ns.UpdateUI() end
+        if ns.RefreshTitanText then ns.RefreshTitanText() end
     elseif event == "LFG_LIST_SEARCH_FAILED" then
         ns.searching = false
         ns.searchFailed = true
         if ns.UpdateUI then ns.UpdateUI() end
+        if ns.RefreshTitanText then ns.RefreshTitanText() end
     elseif event == "LFG_LIST_SEARCH_RESULT_UPDATED" or event == "GROUP_ROSTER_UPDATE" then
         if ns.frame and ns.frame:IsShown() then RefreshSoon() end
     elseif event == "CHAT_MSG_SYSTEM" then
