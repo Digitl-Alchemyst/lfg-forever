@@ -27,7 +27,7 @@ local DEFAULTS = {
     sort = "DEFAULT",      -- DEFAULT | LEVEL | NAME | MEMBERS
     hideDeclined = true,
     zoneNotify = true,
-    autoSearch = false,
+    autoSearch = true,
     point = nil,
 }
 
@@ -299,12 +299,15 @@ local function AddActivitySection(tooltip, title, activity)
     end
 end
 
--- Opt-in, off by default: db.autoSearch gates a hover-triggered background
--- search, throttled per zone. This got silently dropped by the server the
--- one time it was tried unconditionally (not a real click), leaving
--- ns.searching stuck - ns.Search()'s 12s self-heal timeout now bounds how
--- long that can last, so this is offered as an experimental opt-in rather
--- than forced on everyone.
+-- Opt-in (default on), gated by db.autoSearch: a hover-triggered background
+-- search, throttled per zone. A prior test blamed this for breaking real
+-- Search-button clicks too, but that turned out to be a separate bug (a
+-- stray 0 in the level filter was hiding every result, search or no
+-- search - see CHANGELOG). The real, confirmed-in-game risk with THIS
+-- mechanism is narrower: the server can silently drop a search that isn't
+-- from a real click, which would otherwise leave ns.searching stuck true
+-- forever - ns.Search()'s 12s self-heal timeout bounds that to a 12s
+-- "Searching..." instead.
 local AUTO_SEARCH_COOLDOWN = 20 -- seconds
 local lastAutoZone, lastAutoTime
 local function MaybeAutoSearch(zoneName, zoneActivity, dungeonActivity)
@@ -589,8 +592,10 @@ function ns.ApplyFilters()
         if db.hideDelisted and e.delisted then ok = false end
         if ok and db.show == "GROUPS" and e.isSolo then ok = false end
         if ok and db.show == "PLAYERS" and not e.isSolo then ok = false end
-        if ok and db.minLevel and e.level and e.level < db.minLevel then ok = false end
-        if ok and db.maxLevel and e.level and e.level > db.maxLevel then ok = false end
+        -- db.minLevel/maxLevel of 0 means "no bound", not "level 0 only" -
+        -- 0 is truthy in Lua so it can't be treated like a plain nil check.
+        if ok and db.minLevel and db.minLevel > 0 and e.level and e.level < db.minLevel then ok = false end
+        if ok and db.maxLevel and db.maxLevel > 0 and e.level and e.level > db.maxLevel then ok = false end
         if ok and not PassesRoles(e, db) then ok = false end
         if ok and not PassesText(e, db.text) then ok = false end
         if ok and db.hideDeclined and e.name and ns.declined[e.name] then ok = false end
@@ -736,6 +741,17 @@ ev:SetScript("OnEvent", function(_, event, arg1)
         if arg1 ~= ADDON then return end
         LFGForeverDB = LFGForeverDB or {}
         CopyDefaults(DEFAULTS, LFGForeverDB)
+        -- A saved 0 from before this was fixed would otherwise hide every
+        -- search result forever (0 is truthy, so it read as a real bound).
+        if LFGForeverDB.minLevel == 0 then LFGForeverDB.minLevel = nil end
+        if LFGForeverDB.maxLevel == 0 then LFGForeverDB.maxLevel = nil end
+        -- One-time re-enable of auto-search after it was turned off during
+        -- testing - CopyDefaults won't flip an already-saved false back on.
+        -- Only forces it once so a later manual opt-out via Settings sticks.
+        if not LFGForeverDB._autoSearchReenabled then
+            LFGForeverDB.autoSearch = true
+            LFGForeverDB._autoSearchReenabled = true
+        end
         ns.db = LFGForeverDB
         if ns.InitMinimap then ns.InitMinimap() end
         if ns.RefreshTitanText then ns.RefreshTitanText() end

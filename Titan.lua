@@ -44,12 +44,10 @@ local dataobj = LDB:NewDataObject(ADDON, {
             ns.Toggle()
         end
     end,
-    -- Deliberately does NOT trigger a search itself: C_LFGList.Search only
-    -- works from a real click (see the note at the top of Core.lua) - a
-    -- hover-triggered search was tried here and got silently dropped by
-    -- the server, leaving ns.searching stuck true forever. Right-click is
-    -- the one reliable trigger (or db.autoSearch, opted into via Settings),
-    -- so that's what this points you to.
+    -- Right-click always works (a real click); hover also triggers a search
+    -- when db.autoSearch is on - see MaybeAutoSearch in Core.lua for the
+    -- known risk (the server can silently drop a non-click search) and how
+    -- ns.Search()'s self-heal timeout bounds it.
     OnTooltipShow = function(tooltip)
         tooltip:AddLine("LFG Forever", 1, 0.82, 0)
         ns.AddZoneTooltipLines(tooltip)

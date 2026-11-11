@@ -478,9 +478,15 @@ function ns.CreateUI()
     dash:SetPoint("LEFT", minL, "RIGHT", 2, 0)
     local maxL = EditBox(f, 28, true)
     maxL:SetPoint("LEFT", dash, "RIGHT", 8, 0)
+    -- A level of 0 isn't a real character level - treat it (and blank) as
+    -- "no bound" rather than a filter that would hide every known level.
+    local function PositiveOrNil(n)
+        if n and n > 0 then return n end
+        return nil
+    end
     local function LevelChanged()
-        db.minLevel = tonumber(minL:GetText())
-        db.maxLevel = tonumber(maxL:GetText())
+        db.minLevel = PositiveOrNil(tonumber(minL:GetText()))
+        db.maxLevel = PositiveOrNil(tonumber(maxL:GetText()))
         ns.UpdateUI()
     end
     minL:SetScript("OnTextChanged", function(_, user) if user then LevelChanged() end end)
@@ -489,7 +495,11 @@ function ns.CreateUI()
     local nearMe = Button(f, "Near me", 64, 20)
     nearMe:SetPoint("LEFT", maxL, "RIGHT", 4, 0)
     nearMe:SetScript("OnClick", function()
-        local lvl = UnitLevel("player")
+        local lvl = ns.Safe(UnitLevel("player"))
+        if not lvl or lvl <= 0 then
+            ns.Print("Couldn't read your level right now; try again outside of combat.")
+            return
+        end
         db.minLevel, db.maxLevel = math.max(1, lvl - 3), lvl + 3
         minL:SetText(db.minLevel); maxL:SetText(db.maxLevel)
         ns.UpdateUI()
