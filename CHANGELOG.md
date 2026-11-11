@@ -6,6 +6,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-11
+
 ### Fixed
 - Level filter: a saved `0` in the min/max level boxes was being read as a real bound (`0` is truthy in Lua), so `e.level > 0` matched almost every result and hid them all - searches would come back with real listings in hand (`Showing 0 of 100` in the status line) but nothing shown. `0`/blank are both "no bound" now, typing "0" or a failed "Near me" read can't produce this anymore, and an existing saved `0` is cleared automatically on load. This was a pre-existing bug (confirmed present in the original Enhanced Group Finder code too), not a regression from recent feature work - it just hadn't been triggered before.
 - "Automatic searching (experimental)" was blamed for and briefly removed over the level-filter bug above (it looked like hover auto-search was breaking all real searches; it wasn't - the `0`/`0` level filter was). Restored and re-enabled by default now that the actual cause is fixed. The one confirmed-real risk with this mechanism stands: the server can silently drop a search that isn't from a real click, which `ns.Search()`'s 12s self-heal timeout bounds to a stuck "Searching..." for at most 12s rather than forever. Turn it off via the gear icon / right-click Settings menu if that happens often enough to be annoying.
